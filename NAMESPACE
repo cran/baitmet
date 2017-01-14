@@ -1,0 +1,15 @@
+#exportPattern("^[[:alpha:]]+")
+
+import(Rcpp, erah)
+
+importFrom("HiClimR", "fastCor")
+importFrom("signal", "hanning")
+importFrom("utils", "getTxtProgressBar", "read.csv","setTxtProgressBar", "txtProgressBar", "write.table")
+importFrom("methods", "new")
+importFrom("stats", "coefficients", "cor", "cov", "dist", "dnorm",
+             "fft", "na.omit", "prcomp", "runmed", "sd", "smooth.spline", "predict", "median", "optimize", "nls")
+importFrom("graphics", "legend", "matplot", "par")
+
+importClassesFrom(erah, "RawDataParameters", "MetaboSet", "eRah_DB")
+
+export(decBaitMet, subSetLib, setChrmMethod, setBaitPar, computeRI, plotMZ, quantSM, mzList)

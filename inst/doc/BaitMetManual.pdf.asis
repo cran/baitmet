@@ -1,0 +1,85 @@
+
+%\VignetteIndexEntry{BaitMet Manual}
+%\VignetteEngine{R.rsp::asis}
+%\VignetteKeyword{PDF}
+%\VignetteKeyword{baitmet}
+%\VignetteKeyword{vignette}
+%\VignetteKeyword{package}
+
+#install.packages("baitmet")
+library(baitmet)
+
+########################################################################################
+## 2 Importing and customizing mass spectral libraries: using the Golm Metabolome Database
+########################################################################################
+
+g.info <- "GOLM Metabolome Database------------------------Kopka, J., Schauer, N., Krueger, S., Birkemeyer, C., Usadel, B., Bergmuller, E., Dor- mann, P., Weckwerth, W., Gibon, Y., Stitt, M., Willmitzer, L., Fernie, A.R. and Stein- hauser, D. (2005) GMD.CSB.DB: the Golm Metabolome Database, Bioinformatics, 21, 1635- 1638."
+golm.database <- importGMD(filename="GMD_20111121_VAR5_ALK_MSP.txt", DB.name= "GMD", DB.version="GMD_20111121", DB.info= g.info, type="VAR5.ALK")# The library in R format can now be stored for a posterior faster loading 
+save(golm.database, file= "golmdatabase.rda")
+# Create a object id.list containing the identification listload("golmdatabase.rda")# Select those with KEGG number:kegg.ind <- which(lapply(golm.database@database, function(x) x$KEGG)!="")golm.kegg <- subSetLib(database = golm.database, indexes = kegg.ind)# We can also add the FAME into the library by:db.names <- unlist(lapply(golm.database@database, function(x) x$Name))fame.ind <- grep("FAME", db.names, ignore.case = TRUE)golm.kegg.fames <- subSetLib(database = golm.database, indexes = unique(c(kegg.ind, fame.ind)))
+
+# We can find a certain compound by:findComp(name = "phenol", id.database = golm.kegg.fames)# and access to its information (DB.Id=13):golm.kegg.fames@database[[13]]$Name# or modify (for example) its selective masses:golm.kegg.fames@database[[13]]$SelMZ <- c(120,154)# To see all the slots available, execute:
+str(golm.kegg.fames@database[[13]],1)
+
+mslib <- golm.kegg.fames
+
+############################################
+## 3.1.1 Setting up the experiment files
+############################################
+
+# Create the directory:dir.create("DEMO/Std", recursive=T)# Download raw datadownload.file("https://github.com/xdomingoal/baitmet/raw/master/131114aMRsa04_1.rdata", "DEMO/Std/131114aMRsa04_1.rdata")
+download.file("https://github.com/xdomingoal/baitmet/raw/master/131114aMRsa06_1.rdata", "DEMO/Std/131114aMRsa06_1.rdata")download.file("https://github.com/xdomingoal/baitmet/raw/master/131114aMRsa11_1.rdata", "DEMO/Std/131114aMRsa11_1.rdata")download.file("https://github.com/xdomingoal/baitmet/raw/master/131114aMRsa12_1.rdata", "DEMO/Std/131114aMRsa12_1.rdata")
+
+createdt("DEMO")
+
+############################################
+## 3.1.2 Data processing
+############################################
+
+ex <- newExp(instrumental="DEMO/DEMO_inst.csv", phenotype="DEMO/DEMO_pheno.csv")
+# Accessing metadata:metaData(ex)# Accessing phenodata:phenoData(ex)
+
+Chrm.STD <- setChrmMethod(rt=c(4.415, 5.145, 5.836, 7.11, 8.26, 9.30, 10.263, 11.14, 11.94, 12.691, 13.455, 14.485, 15.968), ri=c(1120.62, 1225.27, 1326.95, 1526.31, 1729.57, 1928.52, 2131.7, 2342.06, 2548.56, 2739.86, 2941.17, 3140.52, 3343.88), name="Chrm STD")
+
+ext.par <- setBaitPar(ri.error = 0.05, min.peak.width = 1, min.peak.height = 1000, noise.threshold = 100, avoid.processing.mz = c(1:69,73:75,147:149))
+ex <- decBaitMet(Experiment = ex, BaitParameters = ext.par, ms.library = mslib, chrom.method = Chrm.STD)
+
+head(idList(object = ex, id.database = mslib ))
+save(ex, file="DEMO_baitmet.rda")load("DEMO_baitmet.rda")
+
+############################################
+## 3.2.1 Withouth using internal standards
+############################################
+
+ex <- computeRI(Experiment = ex, ms.library = mslib)
+
+############################################
+## 3.2.2 Using internal standards
+############################################
+
+# Create a object id.list containing the identification listid.list <- idList(object = ex, id.database = mslib)# Select their namesid.names <- id.list$Name.1# Search and select only those names containing the word FAMEfame.indexes <- grep("FAME", id.names, ignore.case = TRUE)
+id.list[fame.indexes,]
+
+FAME.AlignID <- as.numeric(as.vector(id.list[fame.indexes, "AlignID"]))ex <- computeRI(Experiment = ex, ms.library = mslib, IS.alignid = FAME.AlignID)
+
+#######################################################################################
+## 3.3 Validating results: using selective masses for compound quantification
+#######################################################################################
+
+ex <- quantSM(Experiment = ex, ms.library = mslib, AlignID = c(38,61))
+
+mzList(Experiment = ex, by.area = TRUE)
+
+#######################################
+## 4 Results and visualization
+#######################################
+
+plotProfile(Experiment = ex, AlignId = 61)
+
+plotSpectra(Experiment = ex, AlignId = 61)
+
+plotMZ(Experiment = ex, AlignId = 61)
+
+
+
+
