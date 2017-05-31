@@ -1,3 +1,11 @@
+baitmet v1.0.1 (Release date: 2016-05-30)
+==============
+
+* Minor bug fixes
+* Documentation updated
+* Baitmet now allows computing Stein and Scott composite similarity.
+
+
 baitmet v1.0.0 (Release date: 2016-04-15)
 ==============
 

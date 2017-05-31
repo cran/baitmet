@@ -5,7 +5,8 @@
 \usage{
 setBaitPar(ri.error=0.05, min.peak.width, 
 min.peak.height=500, noise.threshold=500, 
-avoid.processing.mz=c(1:69,73:75,147:149), 
+avoid.processing.mz=c(1:69,73:75,147:149),
+matching.method = c("cosine", "SteinScott"), 
 compression.coef=2, analysis.time=0)
 }
 \arguments{
@@ -14,7 +15,8 @@ compression.coef=2, analysis.time=0)
   \item{min.peak.height}{Minimum compound peak height}
   \item{noise.threshold}{Data above this threshold will be considered as noise}
   \item{avoid.processing.mz}{The masses that do not want to be considered for processing. Typically, in GC-MS those masses are 73,74,75,147,148 and 149, since they are they are ubiquitous mass fragments typically generated from compounds carrying a trimethylsilyl moiety.}
-  \item{compression.coef}{Data will be compressed when using OSD algorithm according to this value. This parameter is recomended to bet to 2.}
+  \item{matching.method}{The matching method to compute the spectral similarity Match Factor. By default, the cosine dot product is used. Users might select the Stein and Scott composite similarity product.}
+  \item{compression.coef}{Data will be compressed when using the orthogonal signal deconvolution (OSD) algorithm according to this value. A level 2 of compression is recomended.}
   \item{analysis.time}{The chromatographic retention time window to process. If 0, all the chromatogram is processed.}
  
  }

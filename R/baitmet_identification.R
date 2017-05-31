@@ -1,4 +1,4 @@
-identifyComp_baitmet <- function(Experiment, id.database)
+identifyComp_baitmet <- function(Experiment, id.database, matching.method)
 {
 	
 	#	Experiment <- exta
@@ -6,18 +6,18 @@ identifyComp_baitmet <- function(Experiment, id.database)
 		####
 		
 		compare.only.mz <- Experiment@Results@Parameters@Alignment$mz.range
-
-		id.par <- list(database.name = id.database@name, compare.only.mz = compare.only.mz, n.putative=1)
+		
+		id.par <- list(database.name = id.database@name, compare.only.mz = compare.only.mz, n.putative=1, matching.method=matching.method)
 		Experiment@Results@Parameters@Identification <- id.par
 	
 	avoid.processing.mz <- Experiment@Data@Parameters$avoid.processing.mz
 	maxMZ <- max(compare.only.mz)
-	Experiment@Results@Identification <- idenBaitmet(Experiment, maxMZ, compare.only.mz, avoid.processing.mz, id.database)
+	Experiment@Results@Identification <- idenBaitmet(Experiment, maxMZ, compare.only.mz, avoid.processing.mz, id.database, matchMethod=matching.method)
 	Experiment
 
 }
 
-idenBaitmet <- function(Experiment, maxMZ, compare.only.mz, avoid.processing.mz, id.database)
+idenBaitmet <- function(Experiment, maxMZ, compare.only.mz, avoid.processing.mz, id.database, matchMethod)
 {	
 
 	
@@ -56,7 +56,8 @@ idenBaitmet <- function(Experiment, maxMZ, compare.only.mz, avoid.processing.mz,
 	ref.mat <- do.call(cbind, ref.list.s)
 	ref.mat[Experiment@Data@Parameters$avoid.processing.mz,] <- 0
 	
-	id.match <- cor(spectra.mat,ref.mat)
+	if(matchMethod=='cosine') id.match <- cor(spectra.mat,ref.mat)
+	if(matchMethod=='SteinScott') id.match <- steinScottMF(spectra.mat,ref.mat)
 	
 	identification.results <- cbind(id.name, round(diag(id.match)*100,2), vect.j, id.form, id.kegg, id.cas)
 	colnames(identification.results) <- c("Name.1","MatchFactor.1","DB.Id.1","Formula.1","KEGG.1","CAS.1")
@@ -71,5 +72,64 @@ idenBaitmet <- function(Experiment, maxMZ, compare.only.mz, avoid.processing.mz,
 	id.list
 }
 
+
+steinScottMF <- function(querySp,refSp, aFactor=0.5, bFactor=2)
+{
+	x <- querySp
+	y <- refSp
+
+	x <- normalize(x)^aFactor
+	y <- normalize(y)^aFactor
+	
+	x.mz <- seq(1, nrow(x)^bFactor, by=1)
+	y.mz <- seq(1, nrow(y)^bFactor, by=1)
+	
+	X.mz <- matrix(0, nrow=nrow(x)^bFactor, ncol=ncol(x))
+	Y.mz <- matrix(0, nrow=nrow(y)^bFactor, ncol=ncol(y))
+
+	X.mz[(1:nrow(x))^bFactor,] <- x
+	Y.mz[(1:nrow(y))^bFactor,] <- y
+
+		
+	Sc <- cor(X.mz, Y.mz)
+			
+	X.mz <- X.mz[(1:nrow(x))^bFactor,] 
+	Y.mz <- Y.mz[(1:nrow(y))^bFactor,] 	
+	
+	Scr <- matrix(0, nrow=ncol(X.mz), ncol=ncol(Y.mz))
+	for(x.i in 1:ncol(X.mz))
+	{
+		for(y.i in 1:ncol(Y.mz))
+		{
+		
+			ySpLoc <- Y.mz[,y.i]
+			xSpLoc <- X.mz[,x.i]
+			sharedPeaks <- which(ySpLoc*xSpLoc!=0)
+			Xunique <- length(which(X.mz[,x.i]!=0))
+			
+			if(length(sharedPeaks)<=2) next
+		
+			ySpLoc <- ySpLoc[sharedPeaks]
+			xSpLoc <- xSpLoc[sharedPeaks]
+		
+			yLoc <- ySpLoc[length(ySpLoc)]/ySpLoc[-1]
+			yLoc[is.na(yLoc)] <- 0
+			yLoc[!is.finite(yLoc)] <- 0
+		
+			xLoc <- xSpLoc[-1]/xSpLoc[-length(xSpLoc)]
+			xLoc[is.na(xLoc)] <- 0
+			xLoc[!is.finite(xLoc)] <- 0
+		
+			parentProd <- sum(xLoc*yLoc)
+			if(parentProd<1) parentProd <- parentProd^-1
+			
+			SrLoc <- parentProd/nrow(X.mz)	
+			
+			Scr[x.i, y.i] <- (Xunique*Sc[x.i,y.i] + length(sharedPeaks)*SrLoc)/(Xunique + length(sharedPeaks))
+		}
+	}
+		
+	return(Scr)
+}
 
 
